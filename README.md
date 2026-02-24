@@ -39,7 +39,7 @@ It renders a configurable 2D overlay (entities, items, waypoints, etc.) on top o
     - Editable via the in-game menu
   - Distinct colors per waypoint category for fast recognition
 
--  **Mouse-Assisted Targeting (Experimental)**
+-  **Mouse-Assisted Targeting**
   - External mouse movement helper driven by game data
   - Head/neck position helpers using bone queries or smart fallbacks
   - Configurable maximum distance and smoothing parameters
@@ -52,11 +52,6 @@ It renders a configurable 2D overlay (entities, items, waypoints, etc.) on top o
     - Item filters
     - Waypoints & map categories
     - Misc / visual tweaks (e.g., brightness/time controls, “no grass” toggle, capture/stream protection)
-  - Custom theme branded as **“GHaxLabs.com”** with:
-    - Modern layout
-    - Grouped sections
-    - Slider controls for distances/FOV/smoothing
-    - Support for custom fonts and colors (see `menu.py`)
 
 - **Config & Persistence**
   - All configuration stored in the user’s roaming profile directory (e.g. `%APPDATA%\GScript\…`)
