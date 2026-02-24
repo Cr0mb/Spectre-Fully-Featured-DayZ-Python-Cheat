@@ -52,7 +52,7 @@ It renders a configurable 2D overlay (entities, items, waypoints, etc.) on top o
     - Item filters
     - Waypoints & map categories
     - Misc / visual tweaks (e.g., brightness/time controls, “no grass” toggle, capture/stream protection)
-  - Custom theme branded as **“ZFusion | GHaxLabs.com”** with:
+  - Custom theme branded as **“GHaxLabs.com”** with:
     - Modern layout
     - Grouped sections
     - Slider controls for distances/FOV/smoothing
