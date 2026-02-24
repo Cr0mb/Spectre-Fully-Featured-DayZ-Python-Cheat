@@ -175,27 +175,26 @@ Spectre maintains a player list for UX and filtering:
 
 ---
 
-### System / Backend Features
+### System / backend features
 
-Spectre’s backend is designed to be pluggable and DayZ-aware:
+Spectre’s backend is designed around a clear separation between the overlay and game data:
 
-- Memory backend:
-  - `KernelMemoryReader` with **NeacController** integration:
-    - Automatically locates `NeacController-main/NeacController` next to the project.
-    - Starts the Neac driver and connects via `NeacDriverManager`.
-  - User-mode fallback:
-    - When `kernel_mode_enabled` is disabled or driver initialization fails, it falls back to a user-mode reader.
-  - Behavior is controlled via:
-    - `kernel_mode_enabled`
-    - `kernel_fallback_to_usermode`
-- OBS / capture protection:
-  - `obs_protection_enabled` flag to control overlay behavior for screen capture / streaming scenarios.
-- Debug logging:
-  - `debug_logging` flag.
-  - ESP-side logging to `%TEMP%\gscript_esp_debug.log`.
-  - Additional debug logs for item ESP and silent aim.
+- External user-mode reader  
+  - Attaches to the DayZ process and reads memory using standard Windows APIs (for example `OpenProcess` / `ReadProcessMemory`), wrapped behind a helper layer.  
+  - All higher-level features interact with an abstract “game” / “memory helper” object instead of calling Win32 APIs directly.
+- Central memory helper  
+  - A single helper (for example `ESPMemoryHelper`) is responsible for:
+    - Locating the local player, actors, bullets, and items.
+    - Producing world-space data used by ESP, aimbot, silent aim, and waypoints.
+    - Maintaining the live player list used by the menu.
+  - Offsets and game-specific logic are concentrated here, so updating for a new DayZ version is mostly a matter of touching this layer.
+- Capture / streaming protection  
+  - Optional OBS / capture protection flag (`obs_protection_enabled`) that can adjust how the overlay is presented to capture or streaming software.
+- Debug logging  
+  - When `debug_logging` is enabled, ESP-side logs are written to a debug file (for example `%TEMP%\gscript_esp_debug.log`) to help diagnose issues with actors, items, or aimbot targeting.
 
 ---
+
 
 ### Configuration and Persistence
 
