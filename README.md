@@ -1,5 +1,10 @@
 # Spectre Overlay / ESP Framework
 
+
+<img width="545" height="568" alt="image" src="https://github.com/user-attachments/assets/7a939e14-5ca3-4186-be86-3b989e7048ae" />
+
+
+
 ZFusion is a Python-based external overlay and visualization framework for reverse-engineering and experimentation with 3D games.  
 It renders a configurable 2D overlay (entities, items, waypoints, etc.) on top of a running game using a custom GUI, and reads game state through an external memory helper.
 
