@@ -5,7 +5,7 @@ It renders a configurable 2D overlay (entities, items, waypoints, etc.) on top o
 
  **Disclaimer**  
 > This project is for educational and research purposes only (graphics, UI, and reverse-engineering experiments).  
-> Do **not** use it to violate any game’s Terms of Service, license agreements, or local laws.
+> This will not work with battleye. Integrate your own kernel driver for that.
 
 ---
 
