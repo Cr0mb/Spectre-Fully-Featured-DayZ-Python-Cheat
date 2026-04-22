@@ -1,5 +1,9 @@
 <img width="545" height="568" alt="image" src="https://github.com/user-attachments/assets/7a939e14-5ca3-4186-be86-3b989e7048ae" />
 
+## Changelog
+```
+- Updated to v1.29
+```
 
 # Spectre
 
