@@ -59,7 +59,7 @@ def _get_bone_world_pos(game, ent: int, actor_kind: str, logical_bone: str, fall
         return None
     if logical_bone == 'chest':
         if has_bone_helper:
-            for name in ('spine3', 'spine2', 'spine1', 'spine'):
+            for name in ('spine3', 'spine2', 'spine1', 'spine', 'neck'):
                 pos = game.get_bone_position_ws_for_entity(ent, actor_kind, name)
                 if pos:
                     return pos
@@ -70,7 +70,7 @@ def _get_bone_world_pos(game, ent: int, actor_kind: str, logical_bone: str, fall
         return None
     if logical_bone == 'spine':
         if has_bone_helper:
-            for name in ('spine2', 'spine1', 'spine3', 'spine'):
+            for name in ('spine2', 'spine1', 'spine3', 'spine', 'pelvis'):
                 pos = game.get_bone_position_ws_for_entity(ent, actor_kind, name)
                 if pos:
                     return pos
@@ -264,39 +264,54 @@ def run_external_mouse_aim(*, cfg: ESPConfig, game, cam_state, screen_w: int, sc
         _last_best_dist = 0.0
         return
     try:
-        vk = int(getattr(cfg, 'aimbot_key', 2))
+        aim_vk = int(getattr(cfg, 'aimbot_key', 2))
     except Exception:
-        vk = 2
-    if vk <= 0 or not _is_vk_down(vk):
+        aim_vk = 2
+    try:
+        saim_vk = int(getattr(cfg, 'silent_aim_key', 2))
+    except Exception:
+        saim_vk = 2
+    
+    aim_hotkey_down = (aim_vk > 0 and _is_vk_down(aim_vk))
+    saim_hotkey_down = (saim_vk > 0 and _is_vk_down(saim_vk))
+    
+    aimbot_enabled = bool(getattr(cfg, 'aimbot_enabled', False))
+    saim_enabled = bool(getattr(cfg, 'silent_aim_enabled', False))
+
+    # We only care if AT LEAST one relevant hotkey is pressed for an enabled feature
+    active_aim = (aimbot_enabled and aim_hotkey_down)
+    active_saim = (saim_enabled and saim_hotkey_down)
+
+    if not active_aim and not active_saim:
         if hasattr(scene, 'aimbot_active'):
             scene.aimbot_active = False
         _last_target_ent = 0
         _last_best_dist = 0.0
         return
+
     if not actor_ptrs or not local_player_ent:
         if hasattr(scene, 'aimbot_active'):
             scene.aimbot_active = False
         _last_target_ent = 0
         _last_best_dist = 0.0
         return
+    
+    # ... (rest of the fov/bone logic)
     try:
         fov_radius = float(getattr(cfg, 'aimbot_fov', 250.0))
     except Exception:
         fov_radius = 250.0
+    
     if fov_radius <= 0.0:
         if hasattr(scene, 'aimbot_active'):
             scene.aimbot_active = False
         _last_target_ent = 0
         _last_best_dist = 0.0
         return
+
     fov_radius_sq = fov_radius * fov_radius
     logical_bones = _get_enabled_logical_bones(cfg)
-    try:
-        base_smooth = float(getattr(cfg, 'aimbot_smooth', 8.0))
-    except Exception:
-        base_smooth = 8.0
-    if base_smooth < 1.0:
-        base_smooth = 1.0
+    
     sel = _select_ent_for_aim(cfg=cfg, game=game, cam_state=cam_state, screen_w=screen_w, screen_h=screen_h, actor_ptrs=actor_ptrs, local_player_ent=local_player_ent, logical_bones=logical_bones, fov_radius_sq=fov_radius_sq)
     if sel is None:
         if hasattr(scene, 'aimbot_active'):
@@ -304,8 +319,19 @@ def run_external_mouse_aim(*, cfg: ESPConfig, game, cam_state, screen_w: int, sc
         _last_target_ent = 0
         _last_best_dist = 0.0
         return
+    
     ent, best_dx, best_dy, best_dist_sq = sel
-    dist = math.sqrt(best_dist_sq)
+    _last_target_ent = ent
+    _last_best_dist = math.sqrt(best_dist_sq)
+
+    # Only perform mouse movement if the mouse aimbot hotkey is pressed 
+    # and the mouse aimbot feature is enabled.
+    if not active_aim:
+        if hasattr(scene, 'aimbot_active'):
+            scene.aimbot_active = False
+        return
+
+    dist = _last_best_dist
     deadzone_base = max(1.5, fov_radius * 0.01)
     deadzone = deadzone_base / max(1.0, base_smooth / 4.0)
     if dist <= deadzone:

@@ -70,21 +70,10 @@ class ESPMemoryHelper:
                 actor_ptrs = game.get_actor_entity_ptrs() or []
             except Exception:
                 actor_ptrs = []
+            
             if actor_ptrs and len(actor_ptrs) > MAX_ACTOR_ESPS_PER_TICK:
                 actor_ptrs = actor_ptrs[:MAX_ACTOR_ESPS_PER_TICK]
-            filtered_actor_ptrs: list[int] = []
-            for ent in actor_ptrs:
-                try:
-                    entity_name = game.get_entity_name(ent) or ''
-                except Exception:
-                    entity_name = ''
-                actor_kind = classify_actor_from_name(entity_name)
-                if actor_kind == 'WORLD_OBJECT':
-                    continue
-                if 'TrapTrigger' in entity_name or 'ContaminatedTrigger_Dynamic' in entity_name:
-                    continue
-                filtered_actor_ptrs.append(ent)
-            actor_ptrs = filtered_actor_ptrs
+
         item_ptrs: list[int] = []
         if want_items:
             try:
@@ -116,110 +105,62 @@ class ESPMemoryHelper:
                     self._last_debug_print = now
             except Exception:
                 pass
-        local_player_pos = None
-        local_player_ent = 0
+        # 2. Build Actor Scene
         if want_actors and actor_ptrs:
-            scene, local_player_pos, local_player_ent = build_actor_scene(helper=self, cfg=cfg, game=game, cam_state=cam_state, screen_w=screen_w, screen_h=screen_h, frame_index=frame_index, actor_ptrs=actor_ptrs, scene=scene)
-        if want_actors and actor_ptrs and local_player_ent:
-    # ←←← INSERT THE NEW PLAYER LIST BLOCK HERE ←←←
-            # === PLAYER LIST FOR MENU (full server + SteamIDs) ===
-            try:
-                if hasattr(game, 'get_player_list_for_menu'):
-                    scene.player_list_rows = game.get_player_list_for_menu()
-                # else: keep rows set by build_actor_scene as fallback
-            except Exception as e:
-                if getattr(cfg, 'debug_logging', False):
-                    esp_log(f"[MENU] Failed to get full player list: {e}")
-            try:
-                run_external_mouse_aim(cfg=cfg, game=game, cam_state=cam_state, screen_w=screen_w, screen_h=screen_h, actor_ptrs=actor_ptrs, local_player_ent=local_player_ent, scene=scene, now=now)
-            except Exception:
-                pass
-            try:
-                self.aimbot_target_ent = int(get_last_target_ent() or 0)
-            except Exception:
-                self.aimbot_target_ent = 0
-            try:
-                if hasattr(scene, 'aimbot_target_ent'):
-                    scene.aimbot_target_ent = int(self.aimbot_target_ent)
-            except Exception:
-                pass
-            try:
-                if getattr(cfg, 'silent_aim_enabled', False):
-                    target_ent = int(self.aimbot_target_ent or 0)
-                    if target_ent:
-                        try:
-                            name = game.get_entity_name(target_ent)
-                        except Exception:
-                            name = ''
-                        try:
-                            actor_kind = classify_actor_from_name(name)
-                        except Exception:
-                            actor_kind = 'PLAYER'
-                        try:
-                            game.apply_silent_aim(cfg=cfg, cam_state=cam_state, target_ent=target_ent, actor_kind=actor_kind)
-                        except Exception:
-                            pass
-                        try:
-                            game.update_silent_aim_ammo_speed(cfg=cfg, target_ent=target_ent, actor_kind=actor_kind, local_player_ent=int(local_player_ent), active=True)
-                        except Exception:
-                            pass
+            scene, local_player_pos, local_player_ent = build_actor_scene(
+                helper=self, cfg=cfg, game=game, cam_state=cam_state, 
+                screen_w=screen_w, screen_h=screen_h, frame_index=frame_index, 
+                actor_ptrs=actor_ptrs, scene=scene
+            )
+            
+            # Aimbot & Silent Aim
+            if local_player_ent:
+                try:
+                    run_external_mouse_aim(cfg=cfg, game=game, cam_state=cam_state, screen_w=screen_w, screen_h=screen_h, actor_ptrs=actor_ptrs, local_player_ent=local_player_ent, scene=scene, now=now)
+                    self.aimbot_target_ent = int(get_last_target_ent() or 0)
+                    
+                    if getattr(cfg, 'silent_aim_enabled', False):
+                        target_ent = self.aimbot_target_ent
+                        actor_kind = 'PLAYER'
+                        if target_ent:
+                            try:
+                                name = self._actor_name_cache.get(target_ent) or game.get_entity_name(target_ent)
+                                actor_kind = classify_actor_from_name(name)
+                            except Exception: pass
+                        game.apply_silent_aim(cfg=cfg, cam_state=cam_state, target_ent=target_ent, actor_kind=actor_kind)
+                        game.update_silent_aim_ammo_speed(cfg=cfg, target_ent=target_ent, actor_kind=actor_kind, local_player_ent=int(local_player_ent), active=bool(target_ent))
                     else:
-                        try:
-                            game.update_silent_aim_ammo_speed(cfg=cfg, target_ent=0, actor_kind='PLAYER', local_player_ent=int(local_player_ent) if local_player_ent else 0, active=False)
-                        except Exception:
-                            pass
-                else:
-                    try:
-                        game.update_silent_aim_ammo_speed(cfg=cfg, target_ent=0, actor_kind='PLAYER', local_player_ent=int(local_player_ent) if local_player_ent else 0, active=False)
-                    except Exception:
-                        pass
-            except Exception:
-                pass
-        if _pressed_once_vk(VK_F7) and local_player_pos is not None:
-            px, _py, pz = local_player_pos
-            existing = _get_custom_waypoints_cached()
-            wp_index = len(existing) + 1
-            name = f'Custom {wp_index}'
-            _add_custom_waypoint_from_pos(name, px, pz)
-            print(f'[Waypoints] Added custom waypoint {wp_index} at ({px:.1f}, {pz:.1f})')
+                        game.update_silent_aim_ammo_speed(cfg=cfg, target_ent=0, actor_kind='PLAYER', local_player_ent=int(local_player_ent), active=False)
+                except Exception: pass
+
+        # 3. Waypoints (Hotkeys)
+        if _pressed_once_vk(VK_F7) and local_player_pos:
+            px, _, pz = local_player_pos
+            wps = list(get_custom_waypoints_cached())
+            wps.append({'name': f'Custom {len(wps)+1}', 'x': float(px), 'z': float(pz)})
+            set_custom_waypoints(wps)
+
+        # 4. Build Item Scene
+        item_search_labels = []
         if want_items and item_ptrs:
-            scene, item_search_labels = build_item_scene(helper=self, cfg=cfg, game=game, cam_state=cam_state, screen_w=screen_w, screen_h=screen_h, item_ptrs=item_ptrs, scene=scene, now=now)
-        else:
-            try:
-                item_search_labels = list(self._item_search_labels_cache)
-            except Exception:
-                item_search_labels = []
-        if self.item_names_dirty and getattr(cfg, 'persist_item_names', True):
-            try:
-                save_item_names(self.item_name_set)
-            except Exception as e:
-                print(f'[Items] Failed to persist item names: {e}')
-            else:
-                self.item_names_dirty = False
-        if item_search_labels:
-            try:
-                update_item_search_items(item_search_labels)
-            except Exception:
-                pass
-            # === PLAYER LIST FOR MENU (full server + SteamIDs) ===
+            scene, item_search_labels = build_item_scene(
+                helper=self, cfg=cfg, game=game, cam_state=cam_state, 
+                screen_w=screen_w, screen_h=screen_h, item_ptrs=item_ptrs, 
+                scene=scene, now=now
+            )
+            if item_search_labels:
+                self._item_search_labels_cache = item_search_labels
+                if now - self._last_item_search_refresh >= ITEM_SEARCH_REFRESH_INTERVAL:
+                    update_item_search_items(item_search_labels)
+                    self._last_item_search_refresh = now
+
+        # 5. Menu Updates (Throttled)
+        if frame_index % 30 == 0: # Update menu every 30 frames (~0.5s)
             try:
                 if hasattr(game, 'get_player_list_for_menu'):
-                    # Use the new full scoreboard-based list (includes distant players + real SteamIDs)
                     scene.player_list_rows = game.get_player_list_for_menu()
-                else:
-                    # Fallback to old nearby-only rows (if method not yet added)
-                    pass
-            except Exception as e:
-                if getattr(cfg, 'debug_logging', False):
-                    esp_log(f"[MENU] Failed to get full player list: {e}")
-                # Keep whatever build_actor_scene provided as fallback
-                pass
-
-            # Update the menu
-            try:
                 update_player_list(scene.player_list_rows)
-            except Exception:
-                pass
+            except Exception: pass
         scene = build_waypoint_labels(cfg=cfg, game=game, cam_state=cam_state, screen_w=screen_w, screen_h=screen_h, local_pos=local_player_pos, scene=scene)
         try:
             self.last_actor_count = len(actor_ptrs)

@@ -9,7 +9,7 @@ import math
 from Process.esp_config import ESPConfig, get_custom_waypoints_cached, set_custom_waypoints
 from PyQt5 import QtGui, QtCore, QtWidgets
 user32 = ctypes.windll.user32
-_MENU_OPTIONS: List[Dict[str, str]] = [{'label': 'ESP MASTER', 'attr': 'esp_enabled', 'group': 'ESP'}, {'label': 'Player ESP', 'attr': 'draw_players', 'group': 'ESP'}, {'label': '   Player Name', 'attr': 'draw_player_text', 'group': 'ESP'}, {'label': '   Player Box', 'attr': 'draw_player_box', 'group': 'ESP'}, {'label': '   Player Skeleton', 'attr': 'draw_player_skeleton', 'group': 'ESP'}, {'label': '   Player Head Cross', 'attr': 'draw_player_head_cross', 'group': 'ESP'}, {'label': '   Player Distance', 'attr': 'draw_player_distance', 'group': 'ESP'}, {'label': '   Player Corpses', 'attr': 'draw_player_corpses', 'group': 'ESP'}, {'label': 'Zombie ESP', 'attr': 'draw_zombies', 'group': 'ESP'}, {'label': '   Zombie Name', 'attr': 'draw_zombie_text', 'group': 'ESP'}, {'label': '   Zombie Box', 'attr': 'draw_zombie_box', 'group': 'ESP'}, {'label': '   Zombie Skeleton', 'attr': 'draw_zombie_skeleton', 'group': 'ESP'}, {'label': '   Zombie Head Cross', 'attr': 'draw_zombie_head_cross', 'group': 'ESP'}, {'label': '   Zombie Distance', 'attr': 'draw_zombie_distance', 'group': 'ESP'}, {'label': '   Zombie Corpses', 'attr': 'draw_zombie_corpses', 'group': 'ESP'}, {'label': 'Animal ESP', 'attr': 'draw_animal_text', 'group': 'ESP'}, {'label': 'Vehicle ESP', 'attr': 'draw_vehicles', 'group': 'ESP'}, {'label': 'Crosshair', 'attr': 'crosshair_enabled', 'group': 'ESP'}, {'label': 'Mouse Aimbot', 'attr': 'aimbot_enabled', 'group': 'Aimbot'}, {'label': 'Magic Bullet', 'attr': 'silent_aim_enabled', 'group': 'Aimbot'}, {'label': 'Aim at Players', 'attr': 'aimbot_players', 'group': 'Aimbot'}, {'label': 'Aim at Zombies', 'attr': 'aimbot_zombies', 'group': 'Aimbot'}, {'label': 'Draw FOV Circle', 'attr': 'aimbot_draw_fov', 'group': 'Aimbot'}, {'label': 'Draw Crosshair', 'attr': 'aimbot_draw_fov', 'group': 'Aimbot'}, {'label': 'Aim Key Listener', 'attr': 'aimbot_key_listen', 'group': 'Aimbot'}, {'label': 'Item ESP (All)', 'attr': 'draw_items', 'group': 'Items'}, {'label': 'Item Distance ESP', 'attr': 'draw_item_distance', 'group': 'Items'}, {'label': 'Show Clothing Colors', 'attr': 'item_show_clothing_colors', 'group': 'Items'}, {'label': 'Weapons', 'attr': 'draw_items_weapon', 'group': 'Items'}, {'label': 'Ammo', 'attr': 'draw_items_ammo', 'group': 'Items'}, {'label': 'Magazines', 'attr': 'draw_items_magazine', 'group': 'Items'}, {'label': 'Food', 'attr': 'draw_items_food', 'group': 'Items'}, {'label': 'Drink', 'attr': 'draw_items_drink', 'group': 'Items'}, {'label': 'Medical', 'attr': 'draw_items_medical', 'group': 'Items'}, {'label': 'Tools', 'attr': 'draw_items_tool', 'group': 'Items'}, {'label': 'Crafting / Base', 'attr': 'draw_items_crafting', 'group': 'Items'}, {'label': 'Clothing', 'attr': 'draw_items_clothing', 'group': 'Items'}, {'label': 'Backpacks', 'attr': 'draw_items_backpack', 'group': 'Items'}, {'label': 'Attachments', 'attr': 'draw_items_attachment', 'group': 'Items'}, {'label': 'Explosives', 'attr': 'draw_items_explosive', 'group': 'Items'}, {'label': 'Vehicle Parts', 'attr': 'draw_items_vehicle', 'group': 'Items'}, {'label': 'Containers', 'attr': 'draw_items_container', 'group': 'Items'}, {'label': 'Misc Items', 'attr': 'draw_items_misc', 'group': 'Items'}, {'label': 'Waypoint ESP', 'attr': 'waypoint_esp_enabled', 'group': 'Waypoints'}, {'label': '   Cities', 'attr': 'waypoint_show_cities', 'group': 'Waypoints'}, {'label': '   Towns', 'attr': 'waypoint_show_towns', 'group': 'Waypoints'}, {'label': '   Villages', 'attr': 'waypoint_show_villages', 'group': 'Waypoints'}, {'label': '   Military', 'attr': 'waypoint_show_military', 'group': 'Waypoints'}, {'label': '   Airfields', 'attr': 'waypoint_show_airfields', 'group': 'Waypoints'}, {'label': '   Hills / Mountains', 'attr': 'waypoint_show_hills_mountains', 'group': 'Waypoints'}, {'label': '   Industrial', 'attr': 'waypoint_show_industrial', 'group': 'Waypoints'}, {'label': '   Coastal', 'attr': 'waypoint_show_coastal', 'group': 'Waypoints'}, {'label': '   Custom (Saved)', 'attr': 'waypoint_show_custom', 'group': 'Waypoints'}, {'label': 'No Grass', 'attr': 'no_grass_enabled', 'group': 'System'}, {'label': 'OBS Protect', 'attr': 'obs_protection_enabled', 'group': 'System'}]
+_MENU_OPTIONS: List[Dict[str, str]] = [{'label': 'ESP MASTER', 'attr': 'esp_enabled', 'group': 'ESP'}, {'label': 'Player ESP', 'attr': 'draw_players', 'group': 'ESP'}, {'label': '   Player Name', 'attr': 'draw_player_text', 'group': 'ESP'}, {'label': '   Player Box', 'attr': 'draw_player_box', 'group': 'ESP'}, {'label': '   Player Skeleton', 'attr': 'draw_player_skeleton', 'group': 'ESP'}, {'label': '   Player Head Cross', 'attr': 'draw_player_head_cross', 'group': 'ESP'}, {'label': '   Player Distance', 'attr': 'draw_player_distance', 'group': 'ESP'}, {'label': '   Player Corpses', 'attr': 'draw_player_corpses', 'group': 'ESP'}, {'label': 'Zombie ESP', 'attr': 'draw_zombies', 'group': 'ESP'}, {'label': '   Zombie Name', 'attr': 'draw_zombie_text', 'group': 'ESP'}, {'label': '   Zombie Box', 'attr': 'draw_zombie_box', 'group': 'ESP'}, {'label': '   Zombie Skeleton', 'attr': 'draw_zombie_skeleton', 'group': 'ESP'}, {'label': '   Zombie Head Cross', 'attr': 'draw_zombie_head_cross', 'group': 'ESP'}, {'label': '   Zombie Distance', 'attr': 'draw_zombie_distance', 'group': 'ESP'}, {'label': '   Zombie Corpses', 'attr': 'draw_zombie_corpses', 'group': 'ESP'}, {'label': 'Animal ESP', 'attr': 'draw_animal_text', 'group': 'ESP'}, {'label': 'Vehicle ESP', 'attr': 'draw_vehicles', 'group': 'ESP'}, {'label': 'Crosshair', 'attr': 'crosshair_enabled', 'group': 'ESP'}, {'label': 'Mouse Aimbot', 'attr': 'aimbot_enabled', 'group': 'Aimbot'}, {'label': 'Magic Bullet', 'attr': 'silent_aim_enabled', 'group': 'Aimbot'}, {'label': 'Aim at Players', 'attr': 'aimbot_players', 'group': 'Aimbot'}, {'label': 'Aim at Zombies', 'attr': 'aimbot_zombies', 'group': 'Aimbot'}, {'label': 'Draw FOV Circle', 'attr': 'aimbot_draw_fov', 'group': 'Aimbot'}, {'label': 'Draw Crosshair', 'attr': 'aimbot_draw_fov', 'group': 'Aimbot'}, {'label': 'Aim Key Listener', 'attr': 'aimbot_key_listen', 'group': 'Aimbot'}, {'label': 'SAim Key Listener', 'attr': 'silent_aim_key_listen', 'group': 'Aimbot'}, {'label': 'Item ESP (All)', 'attr': 'draw_items', 'group': 'Items'}, {'label': 'Item Distance ESP', 'attr': 'draw_item_distance', 'group': 'Items'}, {'label': 'Show Clothing Colors', 'attr': 'item_show_clothing_colors', 'group': 'Items'}, {'label': 'Weapons', 'attr': 'draw_items_weapon', 'group': 'Items'}, {'label': 'Ammo', 'attr': 'draw_items_ammo', 'group': 'Items'}, {'label': 'Magazines', 'attr': 'draw_items_magazine', 'group': 'Items'}, {'label': 'Food', 'attr': 'draw_items_food', 'group': 'Items'}, {'label': 'Drink', 'attr': 'draw_items_drink', 'group': 'Items'}, {'label': 'Medical', 'attr': 'draw_items_medical', 'group': 'Items'}, {'label': 'Tools', 'attr': 'draw_items_tool', 'group': 'Items'}, {'label': 'Crafting / Base', 'attr': 'draw_items_crafting', 'group': 'Items'}, {'label': 'Clothing', 'attr': 'draw_items_clothing', 'group': 'Items'}, {'label': 'Backpacks', 'attr': 'draw_items_backpack', 'group': 'Items'}, {'label': 'Attachments', 'attr': 'draw_items_attachment', 'group': 'Items'}, {'label': 'Explosives', 'attr': 'draw_items_explosive', 'group': 'Items'}, {'label': 'Vehicle Parts', 'attr': 'draw_items_vehicle', 'group': 'Items'}, {'label': 'Containers', 'attr': 'draw_items_container', 'group': 'Items'}, {'label': 'Misc Items', 'attr': 'draw_items_misc', 'group': 'Items'}, {'label': 'Waypoint ESP', 'attr': 'waypoint_esp_enabled', 'group': 'Waypoints'}, {'label': '   Cities', 'attr': 'waypoint_show_cities', 'group': 'Waypoints'}, {'label': '   Towns', 'attr': 'waypoint_show_towns', 'group': 'Waypoints'}, {'label': '   Villages', 'attr': 'waypoint_show_villages', 'group': 'Waypoints'}, {'label': '   Military', 'attr': 'waypoint_show_military', 'group': 'Waypoints'}, {'label': '   Airfields', 'attr': 'waypoint_show_airfields', 'group': 'Waypoints'}, {'label': '   Hills / Mountains', 'attr': 'waypoint_show_hills_mountains', 'group': 'Waypoints'}, {'label': '   Industrial', 'attr': 'waypoint_show_industrial', 'group': 'Waypoints'}, {'label': '   Coastal', 'attr': 'waypoint_show_coastal', 'group': 'Waypoints'}, {'label': '   Custom (Saved)', 'attr': 'waypoint_show_custom', 'group': 'Waypoints'}, {'label': 'No Grass', 'attr': 'no_grass_enabled', 'group': 'System'}, {'label': 'OBS Protect', 'attr': 'obs_protection_enabled', 'group': 'System'}]
 _ITEM_ATTR_TO_CATEGORY: Dict[str, str] = {'draw_items_weapon': 'Weapon', 'draw_items_ammo': 'Ammo', 'draw_items_magazine': 'Magazine', 'draw_items_food': 'Food', 'draw_items_drink': 'Drink', 'draw_items_medical': 'Medical', 'draw_items_tool': 'Tool', 'draw_items_crafting': 'Crafting', 'draw_items_clothing': 'Clothing', 'draw_items_backpack': 'Backpack', 'draw_items_attachment': 'Attachment', 'draw_items_explosive': 'Explosive', 'draw_items_vehicle': 'Vehicle', 'draw_items_container': 'Container', 'draw_items_misc': 'Misc'}
 _ITEM_SEARCH_CATEGORY_LIST: list[str] = list(dict.fromkeys(_ITEM_ATTR_TO_CATEGORY.values()))
 _ITEM_COLOR_PALETTE: list[tuple[int, int, int]] = [(255, 120, 70), (255, 220, 90), (120, 230, 120), (80, 200, 255), (255, 120, 160), (190, 140, 255), (130, 230, 230), (255, 255, 255)]
@@ -47,6 +47,7 @@ _TABS = _build_tabs()
 _MENU_OPTIONS.extend([
     {'label': 'Set Hour (bright daytime)', 'attr': 'sethour', 'group': 'System'},
     {'label': 'Brightness', 'attr': 'seteye', 'group': 'System'},
+    {'label': 'Debug Bone IDs', 'attr': 'debug_bone_ids', 'group': 'System'},
 ])
 _TABS = _build_tabs()
 
@@ -1131,6 +1132,16 @@ def process_hotkeys(cfg: ESPConfig) -> None:
                     if new_val:
                         _aimkey_listening = True
                         _aimkey_listen_skip = 2
+                        setattr(cfg, 'silent_aim_key_listen', False)
+                    else:
+                        _aimkey_listening = False
+                        _aimkey_listen_skip = 0
+                elif attr == 'silent_aim_key_listen':
+                    setattr(cfg, attr, new_val)
+                    if new_val:
+                        _aimkey_listening = True
+                        _aimkey_listen_skip = 2
+                        setattr(cfg, 'aimbot_key_listen', False)
                     else:
                         _aimkey_listening = False
                         _aimkey_listen_skip = 0
@@ -1314,10 +1325,14 @@ def process_hotkeys(cfg: ESPConfig) -> None:
             vk = _capture_next_virtual_key()
             if vk is not None:
                 try:
-                    cfg.aimbot_key = int(vk)
+                    if getattr(cfg, 'silent_aim_key_listen', False):
+                        cfg.silent_aim_key = int(vk)
+                    else:
+                        cfg.aimbot_key = int(vk)
                 except Exception:
                     pass
                 cfg.aimbot_key_listen = False
+                cfg.silent_aim_key_listen = False
                 _aimkey_listening = False
                 _aimkey_listen_skip = 0
                 try:
@@ -1356,7 +1371,7 @@ def draw_menu(painter: QtGui.QPainter, draw_text: Callable[[QtGui.QPainter, int,
     _box(painter, x, y, w, h, THEME['border'])
     _fill_rect(painter, x, y, w, header_h, THEME['header'])
     _fill_rect(painter, x, y + header_h - 2, w, 2, THEME['accent'])
-    draw_text(painter, x + 12, y + 10, 'Spectre | Made by Cr0mb & SameOldMistakes', *THEME['text'])
+    draw_text(painter, x + 12, y + 10, 'ZFusion | GHaxLabs.com', *THEME['text'])
     indicator = '▼' if menu_collapsed else '▲'
     draw_text(painter, x + w - 20, y + 8, indicator, *THEME['muted'])
     if menu_collapsed:
@@ -1661,12 +1676,26 @@ def draw_menu(painter: QtGui.QPainter, draw_text: Callable[[QtGui.QPainter, int,
                 vk = VK_RBUTTON
             key_name = _vk_to_name(vk)
             listening = bool(getattr(cfg, 'aimbot_key_listen', False))
+            saim_listening = bool(getattr(cfg, 'silent_aim_key_listen', False))
+            
             if listening:
-                status_msg = 'Listening for key / mouse press...'
+                status_msg = 'Listening for Aimbot Key...'
+            elif saim_listening:
+                status_msg = 'Listening for Silent Aim Key...'
             else:
-                status_msg = "Click 'Aim Key Listener' and press a key or mouse button."
-            info = f'Aim Key: {key_name}   |   {status_msg}'
+                status_msg = "Click 'Listener' and press a key."
+                
+            try:
+                saim_vk = int(getattr(cfg, 'silent_aim_key', VK_RBUTTON))
+            except Exception:
+                saim_vk = VK_RBUTTON
+                
+            key_name = _vk_to_name(vk)
+            saim_key_name = _vk_to_name(saim_vk)
+            
+            info = f'Aim Key: {key_name}  |  SAim Key: {saim_key_name}'
             draw_text(painter, content_x + 14, slider_y - 6, info, *THEME['muted'])
+            draw_text(painter, content_x + 14, slider_y + 8, status_msg, *THEME['dim'])
     
     if tab_name == 'System':
         # Draw sliders for configurable world time and eye accommodation

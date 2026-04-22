@@ -30,6 +30,7 @@ class ESPConfig:
     draw_player_box: bool = False
     draw_zombie_box: bool = False
     debug_logging: bool = False
+    debug_bone_ids: bool = False
     aimbot_enabled: bool = False
     aimbot_players: bool = True
     aimbot_zombies: bool = True
@@ -46,6 +47,8 @@ class ESPConfig:
     aimbot_bone_multi: bool = False
     aimbot_closest_to_crosshair: bool = True
     silent_aim_enabled: bool = False
+    silent_aim_key: int = 2
+    silent_aim_key_listen: bool = False
     silent_aim_debug: bool = False
     mouse_aim_max_distance: float = 800.0
     magic_bullet_max_distance: float = 800.0

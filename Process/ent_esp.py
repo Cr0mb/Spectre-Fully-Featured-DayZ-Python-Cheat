@@ -218,7 +218,13 @@ def build_actor_scene(helper: Any, cfg: ESPConfig, game: Any, cam_state, screen_
         if use_skeleton and skel_actors_used >= MAX_SKELETON_ACTORS_PER_TICK:
             use_skeleton = False
         if use_skeleton:
-            keypoints, skel_segments = game.build_skeleton_2d(ent, actor_kind, cam_state, screen_w, screen_h)
+            debug_bone_ids = bool(getattr(cfg, 'debug_bone_ids', False))
+            keypoints, skel_segments = game.build_skeleton_2d(ent, actor_kind, cam_state, screen_w, screen_h, debug_bone_ids=debug_bone_ids)
+            
+            if debug_bone_ids and keypoints and 'debug' in keypoints:
+                for db_x, db_y, db_txt in keypoints['debug']:
+                    scene.actor_labels.append((db_x, db_y, db_txt, (255, 255, 255)))
+            
             if skel_segments:
                 skel_actors_used += 1
         head_2d = keypoints.get('head') if keypoints else None

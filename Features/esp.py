@@ -158,6 +158,21 @@ class MemoryReader:
         if not data:
             return 0
         return int.from_bytes(data[:1], 'little', signed=False) & 255
+    def read_u16(self, address: int) -> int:
+        data = self.read(address, 2)
+        if not data or len(data) < 2:
+            return 0
+        return int.from_bytes(data[:2], 'little', signed=False)
+    def read_f32(self, address: int) -> float:
+        data = self.read(address, 4)
+        if not data or len(data) < 4:
+            return 0.0
+        return struct.unpack('<f', data[:4])[0]
+    def read_vec3(self, address: int) -> Tuple[float, float, float]:
+        data = self.read(address, 12)
+        if not data or len(data) < 12:
+            return (0.0, 0.0, 0.0)
+        return struct.unpack('<fff', data[:12])
     def read_wstring(self, address: int, max_chars: int=64) -> str:
         if not address:
             return ''
@@ -177,12 +192,9 @@ class MemoryInterface:
         self.pid = pid
         self.cfg = cfg
         self.usermode: Optional[MemoryReader] = None
-        self._current = None
         self.handle = None
-        self._kernel_active = False
         self._init_readers()
     def _init_readers(self):
-        """Initialize user-mode memory reader only (kernel driver removed)."""
         try:
             self.usermode = MemoryReader(self.pid)
             self.handle = self.usermode.handle
@@ -190,22 +202,14 @@ class MemoryInterface:
             print(f'[Mem] User-mode MemoryReader init failed: {e}')
             self.usermode = None
             self.handle = None
-            raise RuntimeError('Failed to initialize memory reader.')
-        self._current = self.usermode
-        self._kernel_active = False
+            raise RuntimeError('Failed to initialize any memory reader.')
         print('[Mem] Using user-mode RPM.')
     def close(self):
         if self.usermode:
             self.usermode.close()
             self.usermode = None
-    def is_kernel_mode_active(self) -> bool:
-        # Kernel driver support removed; always False
-        return False
-    def get_process_base_address(self) -> int:
-        # Kernel driver support removed; caller resolves module base via user-mode APIs.
-        return 0
     def _reader(self):
-        return self._current
+        return self.usermode
     def read(self, address: int, size: int):
         r = self._reader()
         return r.read(address, size) if r else None
@@ -265,122 +269,86 @@ class MemoryInterface:
         return r.read_wstring(address, max_chars=max_chars) if r else ''
         
 class DayZOffsets:
-    ENTITY_OBJECTPTR = 404
-    OBJECT_CLEANNAMEPTR = 1264
-    MODBASE_WORLD = 16035920
-    MODBASE_NETWORK = 16114144          # Updated (was 16114064)
-    MODBASE_SCRIPTCONTEXT = 15831880
-    MODBASE_TICK = 15832008
-    WORLD_LOCALPLAYER = 16189504        # Updated to direct global offset from base (was relative 10592)
-    WORLD_LOCALOFFSET = 9822546
-    WORLD_NEARENTLIST = 3912
-    WORLD_FARENTLIST = 4240
-    WORLD_SLOWENTLIST = 8208
-    WORLD_SLOWENTSIZE = 8
-    WORLD_SLOWENTVALIDCOUNT = 8080
-    WORLD_BULLETLIST = 3584
-    WORLD_CAMERA = 440
-    WORLD_EYEACCOM = 10612              # Confirmed same (0x2974)
-    WORLD_HOUR = 10616
-    WORLD_NOGRASS = 3072
-    WORLD_ITEMTABLE_OFFSET = 8288
-    WORLD_ITEMTABLE_CAPACITY = WORLD_ITEMTABLE_OFFSET + 8
-    WORLD_ITEMTABLE_SIZE = WORLD_ITEMTABLE_OFFSET + 16
-    CAMERA_VIEWMATRIX = 8
-    CAMERA_VIEWPROJECTION = 208
-    CAMERA_VIEWPROJECTION2 = 220
-    CAMERA_VIEWPORTMATRIX = 88
-    CAMERA_INVERTEDVIEWUP = 20
-    CAMERA_INVERTEDVIEWFORWARD = 32
-    CAMERA_INVERTEDVIEWTRANSL = 44
-    VISUALSTATE_TRANSFORM = 8
-    VISUALSTATE_INVERSETRANSFORM = 164
+    ENTITY_OBJECTPTR = 0x180
+    OBJECT_CLEANNAMEPTR = 0x4F0
+    MODBASE_WORLD = 0x4263FE8
+    MODBASE_NETWORK = 0x100FBD0
+    WORLD_NEARENTLIST = 0xF48
+    WORLD_FARENTLIST = 0x1090
+    WORLD_SLOWENTLIST = 0x2010
+    WORLD_BULLETLIST = 0xE00
+    WORLD_BULLETSIZE = 0xE08
+    WORLD_CAMERA = 0x1B8
+    WORLD_EYEACCOM = 0x296C
+    WORLD_HOUR = 0x2978
+    WORLD_NOGRASS = 0xC00
+    WORLD_ITEMTABLE_OFFSET = 0x2060
+    WORLD_ITEMTABLE_CAPACITY = WORLD_ITEMTABLE_OFFSET + 0x8
+    WORLD_ITEMTABLE_SIZE = WORLD_ITEMTABLE_OFFSET + 0x10
+    CAMERA_VIEWMATRIX = 0x8
+    CAMERA_VIEWPROJECTION = 0xD0
+    CAMERA_VIEWPROJECTION2 = 0xDC
+    CAMERA_VIEWPORTMATRIX = 0x58
+    CAMERA_INVERTEDVIEWUP = 0x14
+    CAMERA_INVERTEDVIEWFORWARD = 0x20
+    CAMERA_INVERTEDVIEWTRANSL = 0x2C
     VISUALSTATE_POSITION = CAMERA_INVERTEDVIEWTRANSL
-    HUMAN_VISUALSTATE = 456
-    HUMAN_HUMANTYPE = 384
-    HUMAN_LODSHAPE = 520
-    HUMAN_INVENTORY = 1624
-    INVENTORYITEM_ITEMINVENTORY = 1624
-    ITEMINVENTORY_CARGOGRID = 328
-    ITEMINVENTORY_QUALITY = 404
-    CARGOGRID_ITEMLIST = 56
-    DAYZPLAYER_SKELETON = 2024
-    DAYZINFECTED_SKELETON = 1656
-    DAYZPLAYER_NETWORKID = 1764         # Confirmed same (0x6E4)
-    DAYZPLAYER_NETWORKCLIENTPTR = 80
-    DAYZPLAYER_ISDEAD = 226
+    HUMAN_VISUALSTATE = 0x1C8
+    HUMAN_HUMANTYPE = 0x180
+    HUMAN_INVENTORY = 0x650
+    ITEMINVENTORY_QUALITY = 0x194
+    DAYZPLAYER_SKELETON = 0x7E0
+    DAYZINFECTED_SKELETON = 0x670
+    DAYZPLAYER_NETWORKID = 0x6DC
+    DAYZPLAYER_NETWORKCLIENTPTR = 0x50
+    DAYZPLAYER_ISDEAD = 0xE2
     DAYZPLAYER_INVENTORY = HUMAN_INVENTORY
-    DAYZPLAYERINV_HANDS = 248
-    DAYZPLAYERINV_CLOTHING = 336
-    DAYZPLAYERINV_HANDITEMVALID = 432
-    WEAPON_WEAPONINDEX = 1712
-    WEAPON_WEAPONINFOTABLE = 1720
-    WEAPON_MUZZLECOUNT = 1724
-    WEAPON_WEAPONINFOSIZE = 1724
-    WEAPONINVENTORY_MAGAZINEREF = 336
-    MAGAZINE_MAGAZINETYPE = 384
-    MAGAZINE_AMMOCOUNT = 1716
-    MAGAZINE_BULLETLIST = 3584
-    MAGAZINE_BULLETLIST2 = 1448
-    AMMOTYPE_INITSPEED = 868
-    AMMOTYPE_AIRFRICTION = 948
-    SCRIPTCONTEXT_CONSTANTTABLE = 104
-    ANIMCLASS_ANIMCOMPONENT = 176
-    ANIMCLASS_MATRIXARRAY = 3056
-    ANIMCLASS_MATRIXB = 84
-    SKELETON_ANIMCLASS1 = 152
-    SKELETON_ANIMCLASS2 = 40
-    HUMANTYPE_OBJECTNAME = 112
-    HUMANTYPE_CATEGORYNAME = 168
-    SCOREBOARDIDENTITY_NAME = 248       # Confirmed same (0xF8)
-    SCOREBOARDIDENTITY_STEAMID = 160    # Confirmed same (0xA0)
-    SCOREBOARDIDENTITY_NETWORKID = 48
-    SCOREBOARD_TABLE = 24               # Confirmed same (0x18)
-    SCOREBOARD_PLAYERCOUNT = 36         # Confirmed same (0x24)
-
-    # === NEW / UPDATED OFFSETS FROM THREAD (freecam, network, entity, skeleton, weather) ===
-    ENTITY_CONDITION = 404              # New (entity health/integrity state, 0x194)
-    MODBASE_CAMERA_ACTIVE = 16095768    # New (0xF59A18)
-    MODBASE_CAMERA_MODE = 16095624      # New (0xF59988; 3 = debug/freecam)
-    MODBASE_FREEDEBUGCAMERA_GETINSTANCE = 4731792  # New (0x483390)
-    MODBASE_GLOBAL_FREEDEBUGCAMERAINSTANCE = 15900408  # New (0xF29EF8)
-    MODBASE_DEBUGCAMERA_TARGETPOS = 16095728   # New (0xF599F0)
-    MODBASE_DEBUGCAMERA_STARTPOS = 16095668    # New (0xF599B4)
-    MODBASE_ROTATION_SOURCE1 = 16095696        # New (0xF599D0; right/up rows)
-    MODBASE_ROTATION_SOURCE2 = 16095636        # New (0xF59994)
-    MODBASE_CAMERA_UPDATE_PATCH = 8896564      # New (0x87C034)
-    MODBASE_INPUT_HANDLER_PATCH = 4727840      # New (0x482420)
-    SKELETON_BONEMATRIX_STRIDE = 48            # New (0x30 per bone)
-    SKELETON_BONEMATRIX_START = 84             # New (0x54 start offset)
-    WORLD_WEATHERMANAGER = 29784               # New (0x7458 relative to world)
-    WEATHER_TIME = 140                         # New (0x8C, float)
-    WEATHER_OVERCAST = 16                      # New (0x10 pointer + 0x10 actual)
-    WEATHER_FOG = 24                           # New (0x18 pointer + 0x10 actual)
-    WEATHER_RAIN = 32                          # New (0x20 pointer + 0x10 actual)
-    WEATHER_SNOWFALL = 40                      # New (0x28 pointer + 0x10 actual)
+    AMMOTYPE_INITSPEED = 0x38C
+    ANIMCLASS_MATRIXARRAY = 0xBE8
+    SKELETON_ANIMCLASS1 = 0x118
+    HUMANTYPE_OBJECTNAME = 0x98
+    SCOREBOARDIDENTITY_NAME = 0xF8
+    SCOREBOARDIDENTITY_STEAMID = 0xA0
+    SCOREBOARDIDENTITY_NETWORKID = 0x30
+    SCOREBOARD_TABLE = 0x18
+    SCOREBOARD_PLAYERCOUNT = 0x24
     
 DAYZ_EXE_NAME = 'DayZ_x64.exe'
 HEAD_OFFSET_PLAYER = 1.6
 HEAD_OFFSET_ZOMBIE = 1.4
 QUALITY_RUINED = 4
 PLAYER_BONE_IDS = {
-    'pelvis': 1, 'spine': 18, 'neck': 22, 'head': 24,
-    'left_shoulder': 61, 'left_hand': 66,
-    'right_shoulder': 94, 'right_hand': 100,
-    'left_upleg': 2, 'left_foot': 7,
-    'right_upleg': 10, 'right_foot': 15,
+    'neck': 21, 'head': 113, 'spine': 18, 'pelvis': 18,
+    'right_shoulder': 61, 'right_elbow': 63, 'right_hand': 65,
+    'left_shoulder': 94, 'left_elbow': 97, 'left_hand': 99,
+    'right_hip': 1, 'right_knee': 4, 'right_ankle': 6, 'right_foot': 7,
+    'left_hip': 9, 'left_knee': 11, 'left_ankle': 14, 'left_foot': 15,
+    'chest': 18, 'spine3': 21, 'spine2': 18, 'spine1': 18, 'spine_lower': 18
 }
 INFECTED_BONE_IDS = {
-    'pelvis': 1, 'spine': 16, 'neck': 20, 'head': 22,
-    'left_shoulder': 24, 'left_hand': 29,
-    'right_shoulder': 56, 'right_hand': 62,
-    'left_upleg': 2, 'left_foot': 7,
-    'right_upleg': 9, 'right_foot': 14,
+    'neck': 21, 'head': 22, 'spine': 19, 'pelvis': 0,
+    'left_shoulder': 24, 'left_elbow': 53, 'left_hand': 27,
+    'right_shoulder': 56, 'right_elbow': 59, 'right_hand': 60,
+    'right_hip': 1, 'right_knee': 3, 'right_ankle': 6, 'right_foot': 7,
+    'left_hip': 8, 'left_knee': 10, 'left_ankle': 13, 'left_foot': 14,
+    'chest': 19
 }
-PLAYER_BONE_IDS = {'pelvis': 1, 'spine': 18, 'neck': 22, 'head': 24, 'left_shoulder': 61, 'left_hand': 66, 'right_shoulder': 94, 'right_hand': 100, 'left_upleg': 2, 'left_foot': 7, 'right_upleg': 10, 'right_foot': 15}
-INFECTED_BONE_IDS = {'pelvis': 1, 'spine': 16, 'neck': 20, 'head': 22, 'left_shoulder': 24, 'left_hand': 29, 'right_shoulder': 56, 'right_hand': 62, 'left_upleg': 2, 'left_foot': 7, 'right_upleg': 9, 'right_foot': 14}
-PLAYER_SKELETON_SEGMENTS = [('pelvis', 'spine'), ('spine', 'neck'), ('neck', 'head'), ('spine', 'left_shoulder'), ('left_shoulder', 'left_hand'), ('spine', 'right_shoulder'), ('right_shoulder', 'right_hand'), ('pelvis', 'left_upleg'), ('left_upleg', 'left_foot'), ('pelvis', 'right_upleg'), ('right_upleg', 'right_foot')]
-INFECTED_SKELETON_SEGMENTS = [('pelvis', 'spine'), ('spine', 'neck'), ('neck', 'head'), ('spine', 'left_shoulder'), ('left_shoulder', 'left_hand'), ('spine', 'right_shoulder'), ('right_shoulder', 'right_hand'), ('pelvis', 'left_upleg'), ('left_upleg', 'left_foot'), ('pelvis', 'right_upleg'), ('right_upleg', 'right_foot')]
+PLAYER_SKELETON_SEGMENTS = [
+    ('neck', 'head'),
+    ('neck', 'right_shoulder'), ('right_shoulder', 'right_elbow'), ('right_elbow', 'right_hand'),
+    ('neck', 'left_shoulder'), ('left_shoulder', 'left_elbow'), ('left_elbow', 'left_hand'),
+    ('neck', 'spine'), ('spine', 'right_hip'), ('spine', 'left_hip'),
+    ('right_hip', 'right_knee'), ('right_knee', 'right_ankle'), ('right_ankle', 'right_foot'),
+    ('left_hip', 'left_knee'), ('left_knee', 'left_ankle'), ('left_ankle', 'left_foot')
+]
+INFECTED_SKELETON_SEGMENTS = [
+    ('neck', 'head'), ('spine', 'neck'),
+    ('spine', 'left_shoulder'), ('left_shoulder', 'left_elbow'), ('left_elbow', 'left_hand'),
+    ('spine', 'right_shoulder'), ('right_shoulder', 'right_elbow'), ('right_elbow', 'right_hand'),
+    ('spine', 'pelvis'), ('pelvis', 'right_hip'), ('pelvis', 'left_hip'),
+    ('right_hip', 'right_knee'), ('right_knee', 'right_ankle'), ('right_ankle', 'right_foot'),
+    ('left_hip', 'left_knee'), ('left_knee', 'left_ankle'), ('left_ankle', 'left_foot')
+]
 
 SKELETON_OFFSET_PLAYER = DayZOffsets.DAYZPLAYER_SKELETON
 SKELETON_OFFSET_INFECTED = DayZOffsets.DAYZINFECTED_SKELETON
@@ -897,8 +865,8 @@ class ESPOverlay(QtWidgets.QOpenGLWidget):
                 pass
 NETWORK_MANAGER_OFFSET = DayZOffsets.MODBASE_NETWORK
 NETWORK_CLIENT_OFFSET = DayZOffsets.DAYZPLAYER_NETWORKCLIENTPTR
-SCOREBOARD_TABLE_OFFSET = 24
-SCOREBOARD_PLAYERCOUNT_OFFSET = 36
+SCOREBOARD_TABLE_OFFSET = DayZOffsets.SCOREBOARD_TABLE
+SCOREBOARD_PLAYERCOUNT_OFFSET = DayZOffsets.SCOREBOARD_PLAYERCOUNT
 SCOREBOARD_NETWORKID_OFFSET = DayZOffsets.SCOREBOARDIDENTITY_NETWORKID
 SCOREBOARD_STEAMIDPTR_OFFSET = DayZOffsets.SCOREBOARDIDENTITY_STEAMID
 SCOREBOARD_NAMEPTR_OFFSET = DayZOffsets.SCOREBOARDIDENTITY_NAME
@@ -929,10 +897,6 @@ class DayZGame:
             self.mem = None
             return False
         self.mod_base = 0
-        if self.mem.is_kernel_mode_active():
-            base_from_driver = self.mem.get_process_base_address()
-            if base_from_driver:
-                self.mod_base = base_from_driver
         if not self.mod_base and getattr(self.mem, 'handle', None):
             self.mod_base = get_module_base(self.mem.handle, self.exe_name)
         if not self.mod_base:
@@ -1043,20 +1007,22 @@ class DayZGame:
         world = self.get_world_ptr()
         if not world:
             return []
+            
+        # Directly read table pointer and count from world offsets (C++ logic)
+        table_ptr = self.mem.read_u64(world + DayZOffsets.WORLD_BULLETLIST)
+        count = self.mem.read_u32(world + DayZOffsets.WORLD_BULLETSIZE)
+        
+        if not table_ptr or count <= 0 or count > 5000:
+            return []
+
         if debug and (not self._bulletdbg_printed):
             self._bulletdbg_printed = True
-            header = world + DayZOffsets.WORLD_BULLETLIST
-            qword = self.mem.read_u64(header)
-            data_a, count_a = self._read_dynarray_data_count(qword, 'BulletList A')
-            data_b, count_b = self._read_dynarray_data_count(header, 'BulletList B')
-            print('\n========== BulletList Debug ==========')
+            print('\n========== BulletList Debug (C++ Style) ==========')
             print(f'[SAIMDBG] World pointer           : 0x{world:016X}')
-            print(f'[SAIMDBG] World + BulletListOff  : 0x{header:016X}')
-            print(f'[SAIMDBG] [header].u64 (qword)   : 0x{qword:016X}')
-            print(f'[SAIMDBG] DynArray A data,count  : 0x{data_a:016X}, {count_a}')
-            print(f'[SAIMDBG] DynArray B data,count  : 0x{data_b:016X}, {count_b}')
-        ents = self._read_entity_array_any(world, DayZOffsets.WORLD_BULLETLIST, 'BulletList')
-        return ents
+            print(f'[SAIMDBG] Bullet Table Ptr        : 0x{table_ptr:016X}')
+            print(f'[SAIMDBG] Bullet Count (0xE08)    : {count}')
+
+        return self._read_entity_ptrs_from_array(table_ptr, count, 'BulletList')
     def get_actor_entity_ptrs(self) -> List[int]:
         world = self.get_world_ptr()
         if not world:
@@ -1385,6 +1351,18 @@ class DayZGame:
         if not world:
             return 0
         return self.mem.read_u64(world + DayZOffsets.WORLD_CAMERA)
+    def get_local_player_ent(self) -> int:
+        world = self.get_world_ptr()
+        if not world or not self.mem:
+            return 0
+        camera_ptr = self.get_camera_ptr()
+        if not camera_ptr:
+            return 0
+        # method from offsets.txt: Driver::Read<uint64_t>(ptr + 0x8) - 0xA8
+        val = self.mem.read_u64(camera_ptr + 8)
+        if not val:
+            return 0
+        return val - 168
     def _read_vec3(self, base: int, offset: int):
         if not self.mem or not base:
             return None
@@ -1421,8 +1399,8 @@ class DayZGame:
     def _resolve_bone_offsets(self, skeleton: int, vis_state: int, pivot: int):
         if not self.mem or not skeleton or (not vis_state):
             return False
-        anim_candidates = [176, 168, 152]
-        matrix_candidates = [3056, 3048, 3032, 2880, 2864]
+        anim_candidates = [280, 176, 168, 152]
+        matrix_candidates = [3048, 3056, 3032, 2880, 2864]
         for a_off in anim_candidates:
             anim_class = self.mem.read_u64(skeleton + a_off)
             if not anim_class:
@@ -1432,10 +1410,10 @@ class DayZGame:
                 if not matrix_class:
                     continue
                 try:
-                    buf = self.mem.read(matrix_class + pivot * (12 * 4), 36 * 4)
+                    buf = self.mem.read(matrix_class + 84 + pivot * 48, 144)
                 except Exception:
                     buf = b''
-                if not buf or len(buf) < 36 * 4:
+                if not buf or len(buf) < 144:
                     continue
                 self._bone_anim_offset = a_off
                 self._bone_matrix_offset = m_off
@@ -1476,35 +1454,28 @@ class DayZGame:
                 print('[SKELETON_DEBUG] matrix_class INVALID after resolve')
             return None
         try:
-            buf = self.mem.read(matrix_class + pivot * (12 * 4), 36 * 4)
-            if not buf or len(buf) < 36 * 4:
-                if debug:
-                    self._skeleton_debug_count = getattr(self, '_skeleton_debug_count', 0) + 1
-                    print('========== Skeleton Debug ==========')
-                    print(f'[SKELETON_DEBUG] skeleton=0x{skeleton:016X} vis_state=0x{vis_state:016X} pivot={pivot}')
-                    print(f'[SKELETON_DEBUG] anim_class=0x{anim_class:016X} matrix_class=0x{matrix_class:016X}')
-                    print('[SKELETON_DEBUG] matrix bone read FAILED after resolve')
+            # DayZ 1.29 bone matrix array is at matrix_class + 0x54 (translation start)
+            # Each matrix is 0x30 (48 bytes) long. Translation is 3 floats (12 bytes).
+            buf = self.mem.read(matrix_class + 0x54 + pivot * 0x30, 12)
+            if not buf or len(buf) < 12:
                 return None
-            v8 = struct.unpack('<36f', buf)
+            v_b = struct.unpack('<3f', buf)
+            
+            # Entity visual matrix (m1) is a 3x4 matrix at vis_state + 0x8
             m1_buf = self.mem.read(vis_state + 8, 12 * 4)
             if not m1_buf or len(m1_buf) < 12 * 4:
-                if debug:
-                    self._skeleton_debug_count = getattr(self, '_skeleton_debug_count', 0) + 1
-                    print('========== Skeleton Debug ==========')
-                    print(f'[SKELETON_DEBUG] vis_state=0x{vis_state:016X} pivot={pivot}')
-                    print('[SKELETON_DEBUG] visual matrix read FAILED (m1_buf empty/short)')
                 return None
             m1 = struct.unpack('<12f', m1_buf)
-        except Exception as e:
-            if debug:
-                self._skeleton_debug_count = getattr(self, '_skeleton_debug_count', 0) + 1
-                print('========== Skeleton Debug ==========')
-                print(f'[SKELETON_DEBUG] skeleton=0x{skeleton:016X} vis_state=0x{vis_state:016X} pivot={pivot}')
-                print(f'[SKELETON_DEBUG] EXCEPTION in _get_bone_position_ws: {e!r}')
+        except Exception:
             return None
-        z = v8[10] * m1[5] + v8[9] * m1[2] + v8[11] * m1[8] + m1[11]
-        y = v8[10] * m1[4] + v8[9] * m1[1] + v8[11] * m1[7] + m1[10]
-        x = v8[10] * m1[3] + v8[9] * m1[0] + v8[11] * m1[6] + m1[9]
+            
+        # Standard 3x4 Matrix * Vector3 transformation
+        # [ 0 3 6 9 ] [ x ]
+        # [ 1 4 7 10] [ y ]
+        # [ 2 5 8 11] [ z ]
+        x = (m1[0] * v_b[0]) + (m1[3] * v_b[1]) + (m1[6] * v_b[2]) + m1[9]
+        y = (m1[1] * v_b[0]) + (m1[4] * v_b[1]) + (m1[7] * v_b[2]) + m1[10]
+        z = (m1[2] * v_b[0]) + (m1[5] * v_b[1]) + (m1[8] * v_b[2]) + m1[11]
         return (x, y, z)
     def _get_entity_skeleton_and_vis(self, ent: int, actor_kind: str):
         if not self.mem or not ent:
@@ -1527,7 +1498,7 @@ class DayZGame:
         if not skeleton or not vis_state:
             return None
         return self._get_bone_position_ws(skeleton, vis_state, pivot)
-    def build_skeleton_2d(self, ent, actor_kind, cam_state, screen_w: int, screen_h: int):
+    def build_skeleton_2d(self, ent, actor_kind, cam_state, screen_w: int, screen_h: int, debug_bone_ids: bool = False):
         if actor_kind == 'ZOMBIE':
             bone_ids = INFECTED_BONE_IDS
             segments_def = INFECTED_SKELETON_SEGMENTS
@@ -1538,42 +1509,43 @@ class DayZGame:
             return ({}, [])
         skeleton, vis_state = self._get_entity_skeleton_and_vis(ent, actor_kind)
         if not skeleton or not vis_state:
-            if getattr(self, '_skeleton_debug_count', 0) < 10:
-                self._skeleton_debug_count = getattr(self, '_skeleton_debug_count', 0) + 1
-                print('========== Skeleton Debug ==========')
-                print(f'[SKELETON_DEBUG] ent=0x{ent:016X} kind={actor_kind} skeleton=0x{skeleton:016X} vis_state=0x{vis_state:016X}')
-                print('[SKELETON_DEBUG] skeleton/vis_state missing, skipping entity.')
             return (None, [])
+            
+        screen_bones = {}
+        
+        if debug_bone_ids:
+            # In debug mode, we just want to see ALL bone IDs on screen
+            debug_bones = []
+            for i in range(150):
+                pos = self._get_bone_position_ws(skeleton, vis_state, i)
+                if not pos: continue
+                w2s = self.world_to_screen_state(pos, cam_state)
+                if not w2s: continue
+                sx_raw, sy_raw, _ = w2s
+                sx = int(max(0, min(screen_w - 1, sx_raw)))
+                sy = int(max(0, min(screen_h - 1, sy_raw)))
+                debug_bones.append((sx, sy, str(i)))
+            return ({'debug': debug_bones}, [])
+
         needed_bones = set()
         for a, b in segments_def:
             needed_bones.add(a)
             needed_bones.add(b)
         needed_bones.add('head')
+        
         world_bones = {}
-        debug = False
         for name in needed_bones:
             pivot = bone_ids.get(name)
             if pivot is None:
                 continue
             pos = self._get_bone_position_ws(skeleton, vis_state, pivot)
             if not pos:
-                if debug and name in ('pelvis', 'spine', 'neck', 'head'):
-                    self._skeleton_debug_count = getattr(self, '_skeleton_debug_count', 0) + 1
-                    print('========== Skeleton Debug ==========')
-                    print(f'[SKELETON_DEBUG] ent=0x{ent:016X} kind={actor_kind}')
-                    print(f'[SKELETON_DEBUG] skeleton=0x{skeleton:016X} vis_state=0x{vis_state:016X}')
-                    print(f"[SKELETON_DEBUG] bone '{name}' pivot={pivot} -> FAILED")
                 continue
             world_bones[name] = pos
-            if debug and name in ('pelvis', 'spine', 'neck', 'head'):
-                self._skeleton_debug_count = getattr(self, '_skeleton_debug_count', 0) + 1
-                print('========== Skeleton Debug ==========')
-                print(f'[SKELETON_DEBUG] ent=0x{ent:016X} kind={actor_kind}')
-                print(f'[SKELETON_DEBUG] skeleton=0x{skeleton:016X} vis_state=0x{vis_state:016X}')
-                print(f"[SKELETON_DEBUG] bone '{name}' pivot={pivot} -> WS {pos}")
+            
         if not world_bones:
             return ({}, [])
-        screen_bones = {}
+            
         for name, pos in world_bones.items():
             w2s = self.world_to_screen_state(pos, cam_state)
             if not w2s:
@@ -1582,8 +1554,10 @@ class DayZGame:
             sx = int(max(0, min(screen_w - 1, sx_raw)))
             sy = int(max(0, min(screen_h - 1, sy_raw)))
             screen_bones[name] = (sx, sy)
+        
         head_2d = screen_bones.get('head')
         chest_2d = screen_bones.get('spine3') or screen_bones.get('spine2') or screen_bones.get('spine1') or head_2d
+        
         segments = []
         for a, b in segments_def:
             pa = screen_bones.get(a)
@@ -1593,6 +1567,7 @@ class DayZGame:
             ax, ay = pa
             bx, by = pb
             segments.append((ax, ay, bx, by))
+            
         keypoints = {'head': head_2d, 'chest': chest_2d}
         return (keypoints, segments)
 def run_esp(config: Optional[ESPConfig]=None):
@@ -1654,7 +1629,7 @@ def _dayzgame_get_ammo_type_for_player(self, local_player_ent: int, debug: bool=
             print('[SAIMDBG] _get_ammo_type_for_player: no mem or local_player_ent=0')
         return 0
     inv_off = getattr(DayZOffsets, 'DAYZPLAYER_INVENTORY', DayZOffsets.HUMAN_INVENTORY)
-    OFF_AMMO_TYPE1 = 1712
+    OFF_AMMO_TYPE1 = 1704
     OFF_AMMO_TYPE2 = 32
     inventory = 0
     hands = 0
@@ -1780,50 +1755,31 @@ def _dayzgame_apply_silent_aim(self, *, cfg: ESPConfig, cam_state, target_ent: i
         if debug:
             print('[SAIMDBG] No bullets in WORLD_BULLETLIST this tick.')
         return
-    best_bullet = 0
-    best_dist2 = float('inf')
+
+    count = 0
     for b in bullet_ents:
-        b_pos = self.get_entity_position(b)
-        if not b_pos:
+        vis_state = mem.read_u64(int(b) + DayZOffsets.HUMAN_VISUALSTATE)
+        if not vis_state:
             continue
-        dx = float(b_pos[0]) - float(cam_pos[0])
-        dy = float(b_pos[1]) - float(cam_pos[1])
-        dz = float(b_pos[2]) - float(cam_pos[2])
-        dist2 = dx * dx + dy * dy + dz * dz
-        if dist2 < best_dist2:
-            best_dist2 = dist2
-            best_bullet = b
-    if not best_bullet:
-        if debug:
-            print('[SAIMDBG] Could not resolve a local bullet entity.')
-        return
-    vis_state = mem.read_u64(int(best_bullet) + DayZOffsets.HUMAN_VISUALSTATE)
-    if not vis_state:
-        if debug:
-            print(f'[SAIMDBG] Bullet 0x{int(best_bullet):016X} has no VisualState.')
-        return
-    target_addr = vis_state + DayZOffsets.VISUALSTATE_POSITION
-    old_pos = mem.read_vec3(target_addr)
-    ok = mem.write_vec3(target_addr, aim_ws)
-    sx = sy = depth = 0.0
-    try:
-        proj = self.world_to_screen_state(aim_ws, (cam_pos, None, None, None))
-    except Exception:
-        proj = None
-    if proj:
+        
+        target_addr = vis_state + DayZOffsets.VISUALSTATE_POSITION
+        if mem.write_vec3(target_addr, aim_ws):
+            count += 1
+
+    if debug and count > 0:
+        sx = sy = depth = 0.0
         try:
-            sx, sy, depth = (float(proj[0]), float(proj[1]), float(proj[2]))
+            proj = self.world_to_screen_state(aim_ws, (cam_pos, None, None, None))
+            if proj:
+                sx, sy, depth = (float(proj[0]), float(proj[1]), float(proj[2]))
         except Exception:
             pass
-    if debug:
+
         print('\n[SAIMDBG] Silent aim applied')
         print(f'  target_ent = 0x{ent:016X} kind={actor_kind}')
         print(f'  screen     = ({sx:.1f}, {sy:.1f}) depth={depth:.2f}')
-        print(f'  bullet_ent = 0x{int(best_bullet):016X} vis=0x{int(vis_state):016X}')
-        print(f'  old_pos    = {old_pos}')
+        print(f'  bullets    = {count}/{len(bullet_ents)} teleported')
         print(f'  new_pos    = {aim_ws}')
-        print(f'  cam_dist2  = {best_dist2:.3f}')
-        print(f'  write_ok   = {ok}')
 def _dayzgame_update_silent_aim_ammo_speed(self, *, cfg: ESPConfig, target_ent: int, actor_kind: str, local_player_ent: int, active: bool) -> None:
     mem = getattr(self, 'mem', None)
     if not mem:
@@ -1876,14 +1832,7 @@ def _dayzgame_update_silent_aim_ammo_speed(self, *, cfg: ESPConfig, target_ent: 
     dz = float(target_pos[2]) - float(local_pos[2])
     distance = (dx * dx + dy * dy + dz * dz) ** 0.5
     new_speed = float(distance * 100.0)
-    orig = float(self._silent_ammo_orig_speed) if self._silent_ammo_orig_speed > 0.0 else new_speed
-    try:
-        max_factor = float(getattr(cfg, 'silent_aim_speed_max_factor', 6.0))
-    except Exception:
-        max_factor = 6.0
-    hard_max = orig * max_factor if max_factor > 0.0 else 0.0
-    if hard_max > 0.0 and new_speed > hard_max:
-        new_speed = hard_max
+    
     ok = False
     try:
         ok = bool(mem.write(int(ammo_type) + DayZOffsets.AMMOTYPE_INITSPEED, struct.pack('<f', float(new_speed))))
