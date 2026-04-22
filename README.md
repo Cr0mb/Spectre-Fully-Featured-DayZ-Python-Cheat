@@ -2,7 +2,7 @@
 
 ## Changelog
 ```
-- Updated to v1.29
+- Updated to v1.29 4/22/2026
 ```
 
 # Spectre
